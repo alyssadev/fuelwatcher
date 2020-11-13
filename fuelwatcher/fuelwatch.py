@@ -19,7 +19,7 @@ class FuelWatch:
 
     def query(self, product: int = None, suburb: str = None,
               region: int = None, brand: int = None, surrounding: str = None,
-              day: str = None):
+              day: str = None, xml: bool = False):
         """
         Returns FuelWatch data based on query parameters
 
@@ -55,9 +55,12 @@ class FuelWatch:
 
             returns today if not set.
 
-        :param to_dicts: Determines if this returns a list of dicts
+        :param xml: Whether the response is a parsed list of dictionaries, or
+                    the raw XML output in string format
 
-        :return: self.to_dicts(response.content)
+        :return: a list of dictionaries from the XML content, or a string
+                 containing the raw XML output if the request failed or if
+                 that was requested via the 'xml' parameter
         """
 
         payload = dict()
@@ -69,41 +72,27 @@ class FuelWatch:
         payload['Day'] = day
 
         response = requests.get(URL, timeout=30, params=payload)
-        if response.status_code == 200:
-            return self.to_dicts(response.content)
-
-    def to_dicts(self, feed):
-        """
-        Given page content parses through the RSS XML and returns only 'item'
-        data which contains fuel station information.
-
-        :param result: url response.content from FuelWatch.query()
-
-        :return: a list of dictionaries from the XML content.
-        """
+        feed = response.text
+        if response.status_code != 200 or xml:
+            return feed
 
         dom = ElementTree.fromstring(feed)
         items = dom.findall('channel/item')
 
-        out = []
-        for elem in items:
-            dic = dict()
-
-            dic['title'] = elem.find('title').text
-            dic['description'] = elem.find('description').text
-            dic['brand'] = elem.find('brand').text
-            dic['date'] = elem.find('date').text
-            dic['price'] = elem.find('price').text
-            dic['trading-name'] = elem.find('trading-name').text
-            dic['location'] = elem.find('location').text
-            dic['address'] = elem.find('address').text
-            dic['phone'] = elem.find('phone').text
-            dic['latitude'] = elem.find('latitude').text
-            dic['longitude'] = elem.find('longitude').text
-            dic['site-features'] = elem.find('site-features').text
-            out.append(dic)
-
-        return out
+        return [{
+            'title': elem.find('title').text,
+            'description': elem.find('description').text,
+            'brand': elem.find('brand').text,
+            'date': elem.find('date').text,
+            'price': elem.find('price').text,
+            'trading-name': elem.find('trading-name').text,
+            'location': elem.find('location').text,
+            'address': elem.find('address').text,
+            'phone': elem.find('phone').text,
+            'latitude': elem.find('latitude').text,
+            'longitude': elem.find('longitude').text,
+            'site-features': elem.find('site-features').text
+        } for elem in items]
 
     class Product:
         ULP = 1
