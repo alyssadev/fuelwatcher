@@ -23,7 +23,7 @@ Requires `pip` to be installed or `pip3` dependant on system, or environment.
 pip install fuelwatcher
 ```
 
-## Usage example
+## ~~Usage example~~ The below documentation is currently inaccurate
 
 ### Basic Usage
 
