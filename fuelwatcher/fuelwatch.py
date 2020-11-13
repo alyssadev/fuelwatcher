@@ -5,55 +5,17 @@
     <https://www.fuelwatch.wa.gov.au>
 
         Copyright (C) 2018, Daniel Michaels
+        Copyright (C) 2020, Alyssa Smith
 """
 from .constants import PRODUCT, REGION, BRAND, SUBURB
-from xml.etree import ElementTree
 
-import logging
-import json
+from xml.etree import ElementTree
 import requests
 
-logging.basicConfig(level=logging.INFO)
-
+URL = 'http://fuelwatch.wa.gov.au/fuelwatch/fuelWatchRSS'
 
 class FuelWatch:
     """Client for FuelWatch RSS Feed. """
-
-    def __init__(self,
-                 url='http://fuelwatch.wa.gov.au/fuelwatch/fuelWatchRSS',
-                 product=PRODUCT, region=REGION, brand=BRAND, suburb=SUBURB):
-        self.url = url
-        self._product = product
-        self._region = region
-        self._brand = brand
-        self._suburb = suburb
-        self._json = None
-        self._xml = None
-        self._raw = None
-
-    def validate_product(self, product: int) -> bool:
-        if not product:
-            return True
-        else:
-            assert product in self._product, "Invalid Product Integer."
-
-    def validate_region(self, region: int) -> bool:
-        if not region:
-            return True
-        else:
-            assert region in self._region, "Invalid Region Specified."
-
-    def validate_brand(self, brand: int) -> bool:
-        if not brand:
-            return True
-        else:
-            assert brand in self._brand, "Invalid Brand."
-
-    def validate_suburb(self, suburb: str) -> bool:
-        if not suburb:
-            return True
-        else:
-            assert suburb in self._suburb, "Invalid Suburb - Check Spelling"
 
     def query(self, product: int = None, suburb: str = None,
               region: int = None, brand: int = None, surrounding: str = None,
@@ -93,13 +55,10 @@ class FuelWatch:
 
             returns today if not set.
 
-        :return: byte-string content of url
-        """
+        :param to_dicts: Determines if this returns a list of dicts
 
-        self.validate_product(product)
-        self.validate_brand(brand)
-        self.validate_region(region)
-        self.validate_suburb(suburb)
+        :return: self.to_dicts(response.content)
+        """
 
         payload = dict()
         payload['Product'] = product
@@ -109,28 +68,11 @@ class FuelWatch:
         payload['Surrounding'] = surrounding
         payload['Day'] = day
 
-        try:
-            response = requests.get(self.url, timeout=30, params=payload)
-            if response.status_code == 200:
-                self._raw = response.content
-                # return self._raw
-                return self._raw
-        except Exception as e:
-            print(e)
+        response = requests.get(URL, timeout=30, params=payload)
+        if response.status_code == 200:
+            return self.to_dicts(response.content)
 
-    @property
-    def get_raw(self):
-        """
-        Returns the full RSS response unparsed.
-
-        :param result: url response.content from FuelWatch.query()
-
-        :return: byte string full RSS XML response
-        """
-        return self._raw
-
-    @property
-    def get_xml(self):
+    def to_dicts(self, feed):
         """
         Given page content parses through the RSS XML and returns only 'item'
         data which contains fuel station information.
@@ -140,10 +82,10 @@ class FuelWatch:
         :return: a list of dictionaries from the XML content.
         """
 
-        dom = ElementTree.fromstring(self._raw)
+        dom = ElementTree.fromstring(feed)
         items = dom.findall('channel/item')
 
-        self._xml = []
+        out = []
         for elem in items:
             dic = dict()
 
@@ -159,14 +101,15 @@ class FuelWatch:
             dic['latitude'] = elem.find('latitude').text
             dic['longitude'] = elem.find('longitude').text
             dic['site-features'] = elem.find('site-features').text
-            self._xml.append(dic)
+            out.append(dic)
 
-        return self._xml
+        return out
 
-    @property
-    def get_json(self):
-        xml = self.get_xml
-        json_results = json.dumps(xml, indent=4, ensure_ascii=True)
-        self._json = json_results
-
-        return self._json
+    class Product:
+        ULP = 1
+        PULP = 2
+        DIESEL = 4
+        LPG = 5
+        NINETYEIGHT = 6
+        E85 = 10
+        BDIESEL = 11
